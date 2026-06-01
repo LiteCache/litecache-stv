@@ -17,7 +17,7 @@ License: GPLv3
 License URI:     https://www.gnu.org/licenses/gpl-3.0.html
 
 
-LiteCache Suspicious Traffic Viewer - Identifies suspicious, masked, and not-human-like traffic patterns.
+LiteCache Suspicious Traffic Viewer - Identifies suspicious, masked, and not-human-like traffic patterns. It is not a LiteSpeed product!
 
 == Description ==
 
