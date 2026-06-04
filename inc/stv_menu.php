@@ -19,6 +19,14 @@ function stv_add_menu_item() {
             'litecache-stv-excludes',
             'litecache_stv_excludes_page',
     );
+    add_submenu_page(
+            'litecache-stv',
+            'LiteCache - STV Settings',
+            'Settings',
+            'manage_options',
+            'litecache-stv-settings',
+            'litecache_stv_settings_page',
+    );
 }
 
 add_action('admin_menu', 'stv_add_menu_item');
