@@ -1,23 +1,15 @@
 === LiteCache Suspicious Traffic Viewer ===
-
 Contributors: rushme2026
-
 Tags: suspicious traffic, masked traffic, bot traffic, crawler, scraper
-
 Requires at least:   6.1
-
 Tested up to: 7.0
-
 Requires PHP: 8.1
-
 Stable tag: 1.0.0
-
 License: GPLv3
-
 License URI:     https://www.gnu.org/licenses/gpl-3.0.html
 
 
-LiteCache Suspicious Traffic Viewer - Identifies suspicious, masked, and not-human-like traffic patterns. It is not a LiteSpeed product!
+LiteCache Suspicious Traffic Viewer - Identifies suspicious, masked, and not-human-like traffic patterns.
 
 == Description ==
 
@@ -113,7 +105,7 @@ This still does not mean that STV claims perfect visibility. The intentional non
 
 In other words: a normal human-like 200 request is not the traffic STV is built to investigate. Everything outside that clean category is where STV becomes useful.
 
-= Cache awareness and technical honesty =
+= Cache awareness and optional cache compatibility rules =
 
 There is an important technical reality that many traffic tools do not explain clearly:
 
@@ -123,7 +115,17 @@ This is not an STV limitation only. It is a structural limitation of every WordP
 
 STV does not hide this blind spot. It is designed around technical honesty: it shows and classifies what can be captured at the PHP/origin layer and does not pretend to see requests that never reach that layer.
 
-At the same time, STV is built to stay cache-friendly. It does not try to gain visibility by forcing the main document out of cache. Breaking cache just to count traffic would defeat the purpose of a performance-conscious setup.
+At the same time, page cache can create a second problem for suspicious traffic analysis: once a bot or crawler has warmed the cache for many URLs, later requests for those URLs may be served before PHP runs. This can reduce STV visibility exactly where suspicious traffic review may matter.
+
+For this reason, STV includes an optional cache compatibility section. If enabled by the site owner, STV can add its own marked `.htaccess` rule block to improve PHP/origin visibility for selected suspicious, bot-like, legacy-browser, or not-human-like request patterns. STV only manages its own block and can remove it again.
+
+LiteSpeed Cache offers the strongest compatibility because selected request patterns can be marked with no-cache behavior at the server/cache layer. This allows STV to keep visibility for these requests while leaving normal cache behavior intact.
+
+WP Rocket compatibility is more limited. STV can add early `.htaccess` rules for selected request patterns, but WP Rocket does not provide the same full request-level no-cache control as LiteSpeed. Depending on the server setup and WP Rocket rules, cached delivery may therefore not be fully bypassable in every case.
+
+Other page cache plugins are not directly supported by STV cache compatibility rules. If another cache plugin is used, the page cache should be purged regularly or configured manually so suspicious or bot-like requests are not always served from an existing cached main document.
+
+STV does not break page cache for normal pageviews just to count traffic. The optional cache compatibility rules are intended to reduce cache-induced blind spots for selected request patterns that are more relevant for suspicious traffic review.
 
 = Upcoming: Cache Shadow Capture =
 
@@ -161,6 +163,8 @@ Cache Shadow Capture is not part of the initial 1.0.0 release. It is planned as 
 - Highlights traffic class, status, method, IP, hits, and user agent
 - Designed for investigation, not for cosmetic dashboards
 - Cache-aware by design and honest about PHP/origin visibility limits
+- Optional cache compatibility rules for LiteSpeed Cache and limited WP Rocket support
+- Own marked `.htaccess` rule block when cache compatibility is explicitly enabled
 - Roadmap includes Cache Shadow Capture for additional cached-pageview evidence
 
 = What STV is not =
@@ -172,7 +176,7 @@ Cache Shadow Capture is not part of the initial 1.0.0 release. It is planned as 
 - Not a replacement for CDN or edge logs
 - Not a tool that claims impossible 100% visibility
 - Not a tool that simply equates visibility with value
-- Not able in version 1.0.0 to see main document requests served entirely from page cache or CDN cache before PHP is executed
+- Not able to see main document requests served entirely from page cache or CDN cache before PHP is executed, unless cache compatibility rules or manual cache configuration make those requests reach PHP
 
 = Why this matters =
 
@@ -192,6 +196,7 @@ The suspicious label is therefore not a marketing trick. It is often the most ho
 2. Activate the plugin through the 'Plugins' screen in WordPress.
 3. Open LiteCache - Suspicious Traffic Viewer (STV) in the WordPress admin area.
 4. Import the current log manually or enable the daily cron import.
+5. Optional: review the Cache Compatibility settings if LiteSpeed Cache, WP Rocket, or another page cache is used.
 
 == Frequently Asked Questions ==
 
@@ -215,13 +220,25 @@ No. No PHP-based WordPress plugin can see a main document request that is served
 
 = Can STV currently see cached pageviews? =
 
-Version 1.0.0 can only capture requests that reach PHP. Fully cached main document requests that never reach PHP are outside the current capture layer.
+STV can only capture requests that reach PHP. Fully cached main document requests that never reach PHP are outside the direct PHP capture layer.
 
-A future Cache Shadow Capture feature is planned to recover additional visibility for cached pageviews through a lightweight POST beacon, without forcing the main document out of cache.
+The optional Cache Compatibility settings can reduce this blind spot for selected suspicious, bot-like, legacy-browser, or not-human-like request patterns, especially with LiteSpeed Cache. WP Rocket support is more limited because it does not provide the same request-level no-cache control.
+
+A future Cache Shadow Capture feature is planned to recover additional browser-side cached pageview evidence through a lightweight POST beacon, without forcing the main document itself out of cache.
 
 = Why does STV mention page cache and CDN cache? =
 
 Because cache changes what WordPress traffic plugins can see. If WordPress or PHP is not executed for a request, a WordPress plugin cannot directly capture that request. STV treats this as an important technical reality, not as something to hide behind a marketing claim.
+
+= How does STV work with LiteSpeed Cache and WP Rocket? =
+
+LiteSpeed Cache offers the strongest compatibility. STV can mark selected request patterns as no-cache candidates so they can still reach PHP and be logged, while normal cache behavior remains available for ordinary pageviews.
+
+WP Rocket compatibility is more limited. STV can add early `.htaccess` rules for selected request patterns, but WP Rocket does not provide the same full request-level no-cache control as LiteSpeed. Some cache behavior may remain outside STV's control.
+
+= What if I use another cache plugin? =
+
+Other cache plugins are not directly supported by STV cache compatibility rules. To preserve STV logging visibility, the page cache should be purged regularly or configured manually so suspicious, bot-like, legacy-browser, or not-human-like requests are not always served from an existing cached main document.
 
 = What is Cache Shadow Capture? =
 
@@ -230,6 +247,8 @@ Cache Shadow Capture is a planned future feature. It is intended to use a small 
 = Does STV break page cache to improve tracking? =
 
 No. STV is designed to stay cache-friendly. It does not force normal pageviews out of cache just to count them.
+
+If the optional Cache Compatibility settings are enabled, STV may add its own marked `.htaccess` rule block for selected suspicious, bot-like, legacy-browser, or not-human-like request patterns. This is intended to reduce cache-induced blind spots without disabling page cache globally.
 
 = Why does STV use the label "suspicious" instead of claiming exact detection? =
 
@@ -257,7 +276,9 @@ Because known bots are often only the visible part of the problem. In many cases
 
 = Which server environments are supported? =
 
-STV supports Apache and LiteSpeed Web Server environments only. For supported environments, the plugin may generate a plugin-local `.htaccess` file to protect the standalone prepend component and to provide the built-in rewrite probe. STV does not modify the WordPress root `.htaccess`.
+STV supports Apache and LiteSpeed Web Server environments only. For supported environments, the plugin may generate a plugin-local `.htaccess` file to protect the standalone prepend component and to provide the built-in rewrite probe.
+
+If Cache Compatibility is explicitly enabled by the site owner, STV may also add a marked rule block to the WordPress root `.htaccess`. STV only manages its own marked block and can remove it again.
 
 = Is LiteCache a third-party brand used by this plugin? =
 
