@@ -48,7 +48,8 @@ if (isset($_POST['action'])) {
 $StvPagenow = (string) ($GLOBALS['pagenow'] ?? '');
 $StvIsStartPage = is_admin() && $StvPage === 'litecache-stv';
 $StvIsExcludesPage = is_admin() && $StvPage === 'litecache-stv-excludes';
-$StvIsStvPage = $StvIsStartPage || $StvIsExcludesPage;
+$StvIsSettingsPage = is_admin() && $StvPage === 'litecache-stv-settings';
+$StvIsStvPage = $StvIsStartPage || $StvIsExcludesPage || $StvIsSettingsPage;
 $StvIsPluginsPage = is_admin() && $StvPagenow === 'plugins.php';
 $StvIsAdminPost = is_admin() && $StvPagenow === 'admin-post.php';
 $StvIsCronRequest = (defined('DOING_CRON') && DOING_CRON) || (function_exists('wp_doing_cron') && wp_doing_cron());
@@ -58,10 +59,12 @@ $StvAdminPostActions = [
     'lc_stv_set_per_page',
     'lc_stv_import_log',
     'lc_stv_toggle_cron',
+    'lc_stv_save_cache_compatibility',
 ];
 $StvIsRelevantAdminPost = $StvIsAdminPost && in_array($StvAction, $StvAdminPostActions, true);
 $StvNeedsFunctions = $StvIsStvPage || $StvIsPluginsPage || $StvIsRelevantAdminPost || $StvIsCronRequest;
 $StvNeedsCustomExcludes = $StvIsExcludesPage || $StvAction === 'lc_stv_save_custom_excludes';
+$StvNeedsSettings = $StvIsSettingsPage || $StvAction === 'lc_stv_save_cache_compatibility';
 $StvNeedsStartPageChecks = $StvIsStartPage;
 $StvNeedsLog = $StvIsStartPage || $StvIsRelevantAdminPost || $StvIsCronRequest;
 $StvNeedsMobileDetect = $StvIsStvPage;
@@ -83,6 +86,10 @@ if ($StvNeedsFunctions) {
 
 if ($StvNeedsCustomExcludes) {
     require_once LC_STV_DIR . 'inc/stv_custom_excludes.php';
+}
+
+if ($StvNeedsSettings) {
+    require_once LC_STV_DIR . 'inc/stv_settings.php';
 }
 
 if ($StvNeedsLog) {
@@ -108,6 +115,7 @@ add_action('admin_post_lc_stv_toggle_capture', 'lc_stv_handle_toggle_capture');
 add_action('admin_post_lc_stv_set_per_page', 'lc_stv_handle_set_per_page');
 add_action('admin_post_lc_stv_import_log', 'lc_stv_handle_import_log');
 add_action('admin_post_lc_stv_toggle_cron', 'lc_stv_handle_toggle_cron');
+add_action('admin_post_lc_stv_save_cache_compatibility', 'lc_stv_handle_save_cache_compatibility');
 add_action('wp_ajax_lc_stv_agent_chart', 'lc_stv_ajax_get_agent_chart');
 add_action('admin_enqueue_scripts', 'lc_stv_enqueue_chart_config');
 add_action(LC_STV_DAILY_IMPORT_HOOK, 'lc_stv_run_scheduled_import');
@@ -132,6 +140,10 @@ if ($StvNeedsMobileDetect && $StvDetect->StvIsMobile() && !$StvDetect->StvIsTabl
     }
 
     function litecache_stv_excludes_page(): void {
+
+    }
+
+    function litecache_stv_settings_page(): void {
 
     }
 
@@ -294,6 +306,23 @@ if ($StvNeedsMobileDetect && $StvDetect->StvIsMobile() && !$StvDetect->StvIsTabl
             }
             if (function_exists('lc_stv_render_custom_excludes_section')) {
                 lc_stv_render_custom_excludes_section();
+            }
+            ?>
+            <div id="landscape">
+                <img src="data:image/png;base64,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"  alt="" />
+            </div>
+        </div>
+        <?php
+    }
+
+    function litecache_stv_settings_page(): void {
+        ?>
+        <div class="wrap stv">
+            <h1 style="display:none"></h1>
+            <?php
+            litecache_stv_header_display();
+            if (function_exists('lc_stv_render_cache_compatibility_section')) {
+                lc_stv_render_cache_compatibility_section();
             }
             ?>
             <div id="landscape">
