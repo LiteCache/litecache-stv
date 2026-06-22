@@ -716,16 +716,27 @@ function lc_stv_handle_toggle_capture(): void {
     check_admin_referer('lc_stv_toggle_capture');
 
     $StvMode = lc_stv_get_post_key('lc_stv_mode');
-    $StvOk = false;
     $StvState = 'error';
 
     if ($StvMode === 'enable') {
-        $StvOk = lc_stv_enable();
-        $StvState = $StvOk ? 'enabled' : 'error';
+        $StvPrependResult = lc_stv_prepare_prepend_configuration();
+
+        if (!empty($StvPrependResult['errors'])) {
+            $StvState = 'prepend_error';
+        } elseif (lc_stv_enable()) {
+            $StvState = 'enabled';
+        }
     } elseif ($StvMode === 'disable') {
-        $StvOk = lc_stv_disable();
-        $StvState = $StvOk ? 'disabled' : 'error';
+        $StvCacheResult = lc_stv_remove_cache_compatibility_block();
+
+        if (empty($StvCacheResult['success'])) {
+            $StvState = 'cache_error';
+        } elseif (lc_stv_disable()) {
+            $StvState = 'disabled';
+        }
     }
+
+    delete_transient(lc_stv_get_admin_checks_cache_key());
 
     wp_safe_redirect(lc_stv_get_start_admin_url(array('lc_stv_toggle' => $StvState)));
     exit;
@@ -744,7 +755,17 @@ function lc_stv_render_toggle_notice(): void {
     }
 
     if ($StvToggle === 'disabled') {
-        echo '<div class="notice notice-warning is-dismissible"><p>LiteCache STV request capture is now disabled.</p></div>';
+        echo '<div class="notice notice-warning is-dismissible"><p>LiteCache STV request capture is now disabled. Cache compatibility rules were removed.</p></div>';
+        return;
+    }
+
+    if ($StvToggle === 'prepend_error') {
+        echo '<div class="notice notice-error is-dismissible"><p>LiteCache STV could not prepare its managed auto_prepend_file configuration. Capture remains disabled.</p></div>';
+        return;
+    }
+
+    if ($StvToggle === 'cache_error') {
+        echo '<div class="notice notice-error is-dismissible"><p>LiteCache STV could not remove its cache compatibility rules. Capture remains enabled.</p></div>';
         return;
     }
 
@@ -1123,6 +1144,7 @@ function litecache_stv_header_display(): void {
     $StvCurrentPage = lc_stv_get_query_key('page');
     $StvIsStartPage = ($StvCurrentPage === 'litecache-stv');
     $StvIsExcludesPage = ($StvCurrentPage === 'litecache-stv-excludes');
+    $StvIsSettingsPage = ($StvCurrentPage === 'litecache-stv-settings');
     ?>
     <header>
         <div class="logo">
@@ -1139,7 +1161,7 @@ function litecache_stv_header_display(): void {
             <ul>
                 <li<?php echo $StvIsStartPage ? ' class="active"' : ''; ?>><a href="<?php echo esc_url(admin_url('admin.php?page=litecache-stv')); ?>">Start</a></li>
                 <li<?php echo $StvIsExcludesPage ? ' class="active"' : ''; ?>><a href="<?php echo esc_url(admin_url('admin.php?page=litecache-stv-excludes')); ?>">Excludes</a></li>
-                <li>&nbsp;</li>
+                <li<?php echo $StvIsSettingsPage ? ' class="active"' : ''; ?>><a href="<?php echo esc_url(admin_url('admin.php?page=litecache-stv-settings')); ?>">Settings</a></li>
                 <li>&nbsp;</li>
                 <li>&nbsp;</li>
                 <li>&nbsp;</li>
