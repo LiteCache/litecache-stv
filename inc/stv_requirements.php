@@ -197,6 +197,7 @@ function lc_stv_build_requirement_report(): array {
     }
 
     $prepend_file = function_exists('lc_stv_get_existing_auto_prepend_file') ? lc_stv_get_existing_auto_prepend_file() : lc_stv_get_ini_auto_prepend_file();
+    $capture_enabled = function_exists('lc_stv_is_enabled') && lc_stv_is_enabled();
 
     if ($prepend_file === '') {
         $prepend_config = function_exists('lc_stv_get_prepend_configuration_status') ? lc_stv_get_prepend_configuration_status() : [];
@@ -204,8 +205,10 @@ function lc_stv_build_requirement_report(): array {
         if (!empty($prepend_config['prepared'])) {
             $methods = !empty($prepend_config['methods']) && is_array($prepend_config['methods']) ? implode(', ', $prepend_config['methods']) : 'unknown';
             $errors[] = 'STV request capture is not active yet. STV has prepared the auto_prepend_file setup (' . $methods . '), but PHP has not applied it in this request. On .user.ini based setups this can take a few minutes. If the error remains, the hosting environment does not apply the prepared auto_prepend_file configuration.';
+        } elseif ($capture_enabled) {
+            $errors[] = 'STV request capture is enabled, but no auto_prepend_file is currently active and no STV-managed prepend setup was detected. Disable and re-enable STV to rebuild the managed prepend configuration, or configure auto_prepend_file manually to point to stv_prepend.php.';
         } else {
-            $errors[] = 'STV request capture is inactive because no auto_prepend_file is currently active and no STV-managed prepend setup was detected. Deactivate and reactivate STV to let the plugin create its prepend configuration, or configure auto_prepend_file manually to point to stv_prepend.php.';
+            $errors[] = 'STV request capture is currently disabled, but no STV-managed auto_prepend_file setup was detected. Enable STV to create the managed prepend configuration, or configure auto_prepend_file manually to point to stv_prepend.php.';
         }
     } elseif (!lc_stv_is_own_prepend_active($prepend_file)) {
         if (function_exists('lc_stv_is_wordfence_prepend') && lc_stv_is_wordfence_prepend($prepend_file)) {
