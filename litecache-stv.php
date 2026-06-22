@@ -64,7 +64,7 @@ $StvAdminPostActions = [
 $StvIsRelevantAdminPost = $StvIsAdminPost && in_array($StvAction, $StvAdminPostActions, true);
 $StvNeedsFunctions = $StvIsStvPage || $StvIsPluginsPage || $StvIsRelevantAdminPost || $StvIsCronRequest;
 $StvNeedsCustomExcludes = $StvIsExcludesPage || $StvAction === 'lc_stv_save_custom_excludes';
-$StvNeedsSettings = $StvIsSettingsPage || $StvAction === 'lc_stv_save_cache_compatibility';
+$StvNeedsSettings = $StvIsSettingsPage || $StvAction === 'lc_stv_save_cache_compatibility' || $StvAction === 'lc_stv_toggle_capture';
 $StvNeedsStartPageChecks = $StvIsStartPage;
 $StvNeedsLog = $StvIsStartPage || $StvIsRelevantAdminPost || $StvIsCronRequest;
 $StvNeedsMobileDetect = $StvIsStvPage;
@@ -181,50 +181,54 @@ if ($StvNeedsMobileDetect && $StvDetect->StvIsMobile() && !$StvDetect->StvIsTabl
             <h1 style="display:none"></h1>
             <?php
             litecache_stv_header_display();
-            if (empty($StvErrors)) {
-                ?>
-                <section>
-                    <ul>
-                        <li class="shadow">
-                            <h2>LiteCache Suspicious Traffic Viewer (STV) makes suspicious traffic visible.</h2>
-                            <br />
-                            LiteCache Suspicious Traffic Viewer (STV) helps make suspicious traffic visible, especially requests that look normal or remain unnoticed in ordinary logs.
-                            It is not a realtime logger and it cannot see requests fully served by page cache or CDN cache. STV is db-less while logging, and captured log data only becomes visible after the next
-                            nightly cron import.
-                        </li>
-                    </ul>
-                    <?php
-                    lc_stv_render_import_notice();
-                    lc_stv_render_toggle_notice();
-                    lc_stv_render_cron_notice();
-                    if (!empty($StvErrors)) {
-                        echo '<ul class="errormessage">';
-                        foreach ($StvErrors as $StvError) {
-                            echo '<li >' . esc_html($StvError) . '</li>';
-                        }
-                        echo '</ul>';
-                    }
+            if (!empty($StvErrors)) {
+                echo '<ul class="errormessage">';
 
-                    if (!empty($StvWarnings)) {
-                        echo '<ul class="errormessage">';
-                        foreach ($StvWarnings as $StvWarning) {
-                            echo '<li>Warning: ' . esc_html($StvWarning) . '</li>';
-                        }
-                        echo '</ul>';
+                foreach ($StvErrors as $StvError) {
+                    echo '<li>' . esc_html($StvError) . '</li>';
+                }
+
+                echo '</ul>';
+            }
+            ?>
+            <section>
+                <ul>
+                    <li class="shadow">
+                        <h2>LiteCache Suspicious Traffic Viewer (STV) makes suspicious traffic visible.</h2>
+                        <br />
+                        LiteCache Suspicious Traffic Viewer (STV) helps make suspicious traffic visible, especially requests that look normal or remain unnoticed in ordinary logs.
+                        It is not a realtime logger and it cannot see requests fully served by page cache or CDN cache. STV is db-less while logging, and captured log data only becomes visible after the next
+                        nightly cron import.
+                    </li>
+                </ul>
+                <?php
+                lc_stv_render_import_notice();
+                lc_stv_render_toggle_notice();
+                lc_stv_render_cron_notice();
+
+                if (!empty($StvWarnings)) {
+                    echo '<ul class="errormessage">';
+                    foreach ($StvWarnings as $StvWarning) {
+                        echo '<li>Warning: ' . esc_html($StvWarning) . '</li>';
                     }
-                    if (!lc_stv_is_enabled()) {
-                        ?>
-                        <ul class="errormessage">
-                            <li>STV is currently disabled. No new requests are being captured.</li>
-                        </ul>
-                    <?php } ?>
-                    <div class="actions">
+                    echo '</ul>';
+                }
+                if (!lc_stv_is_enabled()) {
+                    ?>
+                    <ul class="errormessage">
+                        <li>STV is currently disabled. No new requests are being captured.</li>
+                    </ul>
+                <?php } ?>
+                <div class="actions">
+                    <?php if (empty($StvErrors)) { ?>
                         <?php lc_stv_render_request_search_form($StvFilters); ?>
                         <?php lc_stv_render_request_filters_form($StvFilters); ?>
-                        <?php lc_stv_render_toggle_form(); ?>
-                    </div>
-                    <br />
-                    <?php
+                    <?php } ?>
+                    <?php lc_stv_render_toggle_form(); ?>
+                </div>
+                <br />
+                <?php
+                if (empty($StvErrors)) {
                     if (litecache_stv_itsme()) {
                         echo '<div class="flex itsme">';
                         lc_stv_render_import_form();
@@ -286,8 +290,8 @@ if ($StvNeedsMobileDetect && $StvDetect->StvIsMobile() && !$StvDetect->StvIsTabl
                             </div>
                         </div>
                     <?php } ?>
-                </section>
-            <?php } ?>
+                <?php } ?>
+            </section>
             <div id="landscape">
                 <img src="data:image/png;base64,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"  alt="" />
             </div>
