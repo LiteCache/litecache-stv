@@ -126,7 +126,16 @@ function lc_stv_write_cache_compatibility_block(string $Mode): array {
         return lc_stv_remove_cache_compatibility_block();
     }
 
-    $Content = is_file($HtaccessPath) ? (string) file_get_contents($HtaccessPath) : '';
+    $Content = '';
+
+    if (is_file($HtaccessPath)) {
+        $Content = file_get_contents($HtaccessPath);
+
+        if ($Content === false) {
+            return ['success' => false, 'message' => 'Could not read .htaccess file.'];
+        }
+    }
+
     $Content = lc_stv_remove_cache_compatibility_block_from_content($Content);
     $NewContent = $Block . "\n" . $Content;
 
@@ -149,7 +158,12 @@ function lc_stv_remove_cache_compatibility_block(): array {
         return ['success' => true, 'message' => 'Cache compatibility rules were disabled.'];
     }
 
-    $Content = (string) file_get_contents($HtaccessPath);
+    $Content = file_get_contents($HtaccessPath);
+
+    if ($Content === false) {
+        return ['success' => false, 'message' => 'Could not read .htaccess file.'];
+    }
+
     $NewContent = lc_stv_remove_cache_compatibility_block_from_content($Content);
 
     if ($NewContent !== $Content && file_put_contents($HtaccessPath, $NewContent, LOCK_EX) === false) {
@@ -174,8 +188,13 @@ function lc_stv_handle_save_cache_compatibility(): void {
         $Mode = 'disabled';
     }
 
-    $Result = $Mode === 'disabled' ? lc_stv_remove_cache_compatibility_block() : lc_stv_write_cache_compatibility_block($Mode);
-    $Notice = !empty($Result['success']) ? 'updated' : 'error';
+    if ($Mode !== 'disabled' && function_exists('lc_stv_is_enabled') && !lc_stv_is_enabled()) {
+        $Result = lc_stv_remove_cache_compatibility_block();
+        $Notice = !empty($Result['success']) ? 'capture_off' : 'error';
+    } else {
+        $Result = $Mode === 'disabled' ? lc_stv_remove_cache_compatibility_block() : lc_stv_write_cache_compatibility_block($Mode);
+        $Notice = !empty($Result['success']) ? 'updated' : 'error';
+    }
 
     wp_safe_redirect(add_query_arg('lc_stv_settings_notice', $Notice, admin_url('admin.php?page=litecache-stv-settings')));
     exit;
@@ -186,6 +205,11 @@ function lc_stv_render_cache_compatibility_notice(): void {
 
     if ($Notice === 'updated') {
         echo '<ul class="errormessage success"><li>Settings saved.</li></ul>';
+    }
+
+    if ($Notice === 'capture_off') {
+        echo '<ul class="errormessage"><li>Enable STV request capture before enabling page cache compatibility.</li></ul>';
+        return;
     }
 
     if ($Notice === 'error') {
