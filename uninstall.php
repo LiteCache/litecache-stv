@@ -89,9 +89,24 @@ function lc_stv_uninstall_get_prepend_marker_end(string $lc_stv_type): string {
     return '# END LiteCache STV auto_prepend ' . $lc_stv_type;
 }
 
+function lc_stv_uninstall_get_cache_compatibility_marker_begin(): string {
+    return '# BEGIN LiteCache STV Cache Compatibility';
+}
+
+function lc_stv_uninstall_get_cache_compatibility_marker_end(): string {
+    return '# END LiteCache STV Cache Compatibility';
+}
+
 function lc_stv_uninstall_strip_managed_prepend_block(string $lc_stv_content, string $lc_stv_type): string {
     $lc_stv_begin = preg_quote(lc_stv_uninstall_get_prepend_marker_begin($lc_stv_type), '/');
     $lc_stv_end = preg_quote(lc_stv_uninstall_get_prepend_marker_end($lc_stv_type), '/');
+
+    return (string) preg_replace('/\R?' . $lc_stv_begin . '.*?' . $lc_stv_end . '\R?/s', PHP_EOL, $lc_stv_content);
+}
+
+function lc_stv_uninstall_strip_cache_compatibility_block(string $lc_stv_content): string {
+    $lc_stv_begin = preg_quote(lc_stv_uninstall_get_cache_compatibility_marker_begin(), '/');
+    $lc_stv_end = preg_quote(lc_stv_uninstall_get_cache_compatibility_marker_end(), '/');
 
     return (string) preg_replace('/\R?' . $lc_stv_begin . '.*?' . $lc_stv_end . '\R?/s', PHP_EOL, $lc_stv_content);
 }
@@ -108,6 +123,28 @@ function lc_stv_uninstall_cleanup_managed_prepend_file(string $lc_stv_file, stri
     }
 
     $lc_stv_updated = lc_stv_uninstall_strip_managed_prepend_block($lc_stv_content, $lc_stv_type);
+    $lc_stv_updated = trim($lc_stv_updated);
+
+    if ($lc_stv_updated === '') {
+        lc_stv_uninstall_delete_file($lc_stv_file);
+        return;
+    }
+
+    @file_put_contents($lc_stv_file, $lc_stv_updated . PHP_EOL, LOCK_EX);
+}
+
+function lc_stv_uninstall_cleanup_cache_compatibility_file(string $lc_stv_file): void {
+    if (!is_file($lc_stv_file)) {
+        return;
+    }
+
+    $lc_stv_content = @file_get_contents($lc_stv_file);
+
+    if (!is_string($lc_stv_content) || $lc_stv_content === '') {
+        return;
+    }
+
+    $lc_stv_updated = lc_stv_uninstall_strip_cache_compatibility_block($lc_stv_content);
     $lc_stv_updated = trim($lc_stv_updated);
 
     if ($lc_stv_updated === '') {
@@ -151,14 +188,20 @@ $wpdb->query('DROP TABLE IF EXISTS `' . $wpdb->prefix . 'stv_requests`');
 $wpdb->query('DROP TABLE IF EXISTS `' . $wpdb->prefix . 'stv_agents`');
 $wpdb->query('DROP TABLE IF EXISTS `' . $wpdb->prefix . 'stv_agent_hits`');
 
+// Remove scheduled events and cached admin checks.
+wp_clear_scheduled_hook('lc_stv_daily_import_event');
+delete_transient('lc_stv_admin_checks');
+
 // Remove plugin options.
 delete_option('stv_db_version');
 delete_option('lc_stv_prepend_setup_state');
 delete_option('lc_stv_rewrite_check_state_v2');
+delete_option('lc_stv_cache_compatibility_mode');
 
-// Remove STV-managed prepend configuration.
+// Remove STV-managed root configuration.
 lc_stv_uninstall_cleanup_managed_prepend_file($lc_stv_root_htaccess_file, 'htaccess');
 lc_stv_uninstall_cleanup_managed_prepend_file($lc_stv_user_ini_file, 'user_ini');
+lc_stv_uninstall_cleanup_cache_compatibility_file($lc_stv_root_htaccess_file);
 
 // Remove plugin-local probe files.
 lc_stv_uninstall_delete_file($lc_stv_rewrite_probe_file);
